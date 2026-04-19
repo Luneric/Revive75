@@ -228,12 +228,15 @@ class _AuthScreenState extends State<AuthScreen> {
           idToken: googleAuth.idToken,
         );
         UserCredential userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+        
         if (userCred.user != null) await _syncUserToFirestore(userCred.user!);
       }
     } catch (e) {
       _showError("Google Error: ${e.toString()}");
     }
   }
+
+  
 
   // --- EMAIL/PASSWORD AUTH LOGIC ---
   Future<void> _handleAuth() async {
