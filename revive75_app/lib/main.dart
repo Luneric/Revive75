@@ -92,25 +92,24 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // --- DATABASE SYNC HELPER ---
   // Ensures user data is stored in Firestore without overwriting existing accounts.
-  Future<void> _syncUserToFirestore(User user, {String? customName}) async {
-    try {
-      final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      final docSnapshot = await userDoc.get();
+ Future<void> _syncUserToFirestore(User user, {String? customName}) async {
+  try {
+    final userDoc =
+        FirebaseFirestore.instance.collection('users').doc(user.uid);
 
-      if (!docSnapshot.exists) {
-        // Only create if user is brand new
-        await userDoc.set({
-          'uid': user.uid,
-          'email': user.email ?? "",
-          'phoneNumber': user.phoneNumber ?? "",
-          'name': customName ?? user.displayName ?? "Warrior",
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      }
-    } catch (e) {
-      debugPrint("Firestore Sync Error: $e");
-    }
+    await userDoc.set({
+      'uid': user.uid,
+      'email': user.email ?? "",
+      'phoneNumber': user.phoneNumber ?? "",
+      'name': customName ?? user.displayName ?? "Warrior",
+      'photoUrl': user.photoURL ?? "",
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true)); // ✅ KEY FIX: updates existing users too
+
+  } catch (e) {
+    debugPrint("Firestore Sync Error: $e");
   }
+}
 
   // --- PHONE SIGN IN LOGIC ---
   Future<void> _signInWithPhone() async {
