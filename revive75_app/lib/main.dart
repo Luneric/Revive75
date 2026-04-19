@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'home_page.dart';
+import 'app_router.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -25,6 +27,7 @@ class Revive75App extends StatelessWidget {
         scaffoldBackgroundColor: Colors.black,
         primaryColor: Colors.blueAccent,
       ),
+      onGenerateRoute: AppRouter.generateRoute,
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
