@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "819122231420",
+    "project_id": "revive75-bfce9",
+    "storage_bucket": "revive75-bfce9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:819122231420:android:c7d1da0fac7030c22491f9",
+        "android_client_info": {
+          "package_name": "com.example.revive75_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAegRFMVyBwGcX7Y4TA6pxsXaZmP4daW6E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
