@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:google_sign_in/google_sign_in.dart'; 
+import 'package:google_sign_in/google_sign_in.dart';
 import 'firebase_options.dart';
 import 'home_page.dart';
 import 'app_router.dart';
@@ -63,12 +63,12 @@ class UserDataWrapper extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
-        
+
         String name = "Warrior";
         if (snapshot.hasData && snapshot.data!.exists) {
           name = snapshot.data!['name'] ?? "Warrior";
         }
-        
+
         return MyHomePage(userName: name);
       },
     );
@@ -87,14 +87,35 @@ class _AuthScreenState extends State<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
-  
-  // Storage for the verification ID needed for Phone Auth
+
   String _verificationId = "";
+
+  // --- DATABASE SYNC HELPER ---
+  // Ensures user data is stored in Firestore without overwriting existing accounts.
+  Future<void> _syncUserToFirestore(User user, {String? customName}) async {
+    try {
+      final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final docSnapshot = await userDoc.get();
+
+      if (!docSnapshot.exists) {
+        // Only create if user is brand new
+        await userDoc.set({
+          'uid': user.uid,
+          'email': user.email ?? "",
+          'phoneNumber': user.phoneNumber ?? "",
+          'name': customName ?? user.displayName ?? "Warrior",
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (e) {
+      debugPrint("Firestore Sync Error: $e");
+    }
+  }
 
   // --- PHONE SIGN IN LOGIC ---
   Future<void> _signInWithPhone() async {
     final TextEditingController phoneController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -103,7 +124,8 @@ class _AuthScreenState extends State<AuthScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("Include your country code (e.g., +1 for USA)", style: TextStyle(color: Colors.grey, fontSize: 12)),
+            const Text("Include your country code (e.g., +1 for USA)",
+                style: TextStyle(color: Colors.grey, fontSize: 12)),
             const SizedBox(height: 10),
             TextField(
               controller: phoneController,
@@ -123,19 +145,20 @@ class _AuthScreenState extends State<AuthScreen> {
             onPressed: () async {
               String phoneNumber = phoneController.text.trim();
               if (phoneNumber.isEmpty) return;
-              
-              Navigator.pop(context); // Close phone dialog
-              
+
+              Navigator.pop(context);
+
               try {
                 await FirebaseAuth.instance.verifyPhoneNumber(
                   phoneNumber: phoneNumber,
                   verificationCompleted: (PhoneAuthCredential credential) async {
-                    await FirebaseAuth.instance.signInWithCredential(credential);
+                    UserCredential userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+                    if (userCred.user != null) await _syncUserToFirestore(userCred.user!);
                   },
                   verificationFailed: (e) => _showError("Phone Error: ${e.message}"),
                   codeSent: (String verId, int? resendToken) {
                     setState(() => _verificationId = verId);
-                    _showCodeDialog(); // Trigger Step 2
+                    _showCodeDialog();
                   },
                   codeAutoRetrievalTimeout: (String verId) {
                     _verificationId = verId;
@@ -152,7 +175,6 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  // Step 2: Ask for the 6-digit SMS code
   void _showCodeDialog() {
     final TextEditingController codeController = TextEditingController();
     showDialog(
@@ -176,7 +198,8 @@ class _AuthScreenState extends State<AuthScreen> {
                   verificationId: _verificationId,
                   smsCode: codeController.text.trim(),
                 );
-                await FirebaseAuth.instance.signInWithCredential(credential);
+                UserCredential userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+                if (userCred.user != null) await _syncUserToFirestore(userCred.user!);
                 Navigator.pop(context);
               } catch (e) {
                 _showError("Invalid or expired code");
@@ -204,7 +227,8 @@ class _AuthScreenState extends State<AuthScreen> {
           accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
         );
-        await FirebaseAuth.instance.signInWithCredential(credential);
+        UserCredential userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+        if (userCred.user != null) await _syncUserToFirestore(userCred.user!);
       }
     } catch (e) {
       _showError("Google Error: ${e.toString()}");
@@ -221,17 +245,21 @@ class _AuthScreenState extends State<AuthScreen> {
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
+        // Login doesn't need sync because user already exists, 
+        // but adding it ensures old users without docs get one.
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) await _syncUserToFirestore(user);
       } else {
         UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
-        await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
-          'uid': userCredential.user!.uid,
-          'email': _emailController.text.trim(),
-          'name': _nameController.text.trim(),
-          'createdAt': DateTime.now(),
-        });
+        if (userCredential.user != null) {
+          await _syncUserToFirestore(
+            userCredential.user!,
+            customName: _nameController.text.trim(),
+          );
+        }
       }
     } catch (e) {
       _showError(e.toString());
@@ -261,7 +289,6 @@ class _AuthScreenState extends State<AuthScreen> {
                   style: TextStyle(fontSize: 36, fontWeight: FontWeight.w900, letterSpacing: 2),
                 ),
                 const SizedBox(height: 40),
-                
                 if (!isLogin) ...[
                   TextFormField(
                     controller: _nameController,
@@ -270,7 +297,6 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   const SizedBox(height: 15),
                 ],
-
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -278,7 +304,6 @@ class _AuthScreenState extends State<AuthScreen> {
                   validator: (val) => val!.isEmpty ? "Enter your email" : null,
                 ),
                 const SizedBox(height: 15),
-
                 TextFormField(
                   controller: _passwordController,
                   obscureText: true,
@@ -286,9 +311,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   decoration: const InputDecoration(labelText: "Password", prefixIcon: Icon(Icons.lock)),
                   validator: (val) => val!.length < 6 ? "Password too short" : null,
                 ),
-
                 const SizedBox(height: 30),
-
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -302,21 +325,17 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: Text(isLogin ? "LOGIN" : "SIGN UP"),
                   ),
                 ),
-
                 const SizedBox(height: 25),
                 const Text("OR CONTINUE WITH", style: TextStyle(color: Colors.grey, fontSize: 12)),
                 const SizedBox(height: 20),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Connected the phone button logic here
                     _socialButton(Icons.phone_android, _signInWithPhone),
                     const SizedBox(width: 20),
                     _socialButton(Icons.g_mobiledata_rounded, _signInWithGoogle),
                   ],
                 ),
-
                 const SizedBox(height: 30),
                 TextButton(
                   onPressed: () => setState(() => isLogin = !isLogin),
