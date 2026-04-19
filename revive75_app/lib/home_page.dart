@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'app_router.dart';
 
 class MyHomePage extends StatelessWidget {
   final String userName;
@@ -42,6 +43,11 @@ class MyHomePage extends StatelessWidget {
         backgroundColor: Colors.black,
         indicatorColor: Colors.blueAccent.withOpacity(0.2),
         selectedIndex: 0,
+         onDestinationSelected: (index) { // ✅ MODIFIED: added navigation logic
+          if (index == 3) { // ✅ ADDED: index 3 = Profile tab
+            Navigator.pushNamed(context, AppRoutes.profile); // ✅ ADDED: triggers router navigation
+          }
+        },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined, color: Colors.white), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.fitness_center, color: Colors.white), label: 'Workouts'),
