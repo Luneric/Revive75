@@ -43,9 +43,13 @@ class MyHomePage extends StatelessWidget {
         backgroundColor: Colors.black,
         indicatorColor: Colors.blueAccent.withOpacity(0.2),
         selectedIndex: 0,
-         onDestinationSelected: (index) { // ✅ MODIFIED: added navigation logic
-          if (index == 3) { // ✅ ADDED: index 3 = Profile tab
-            Navigator.pushNamed(context, AppRoutes.profile); // ✅ ADDED: triggers router navigation
+         onDestinationSelected: (index) {
+          if (index == 1) {
+            Navigator.pushNamed(context, AppRoutes.workout);
+          } else if (index == 2) {
+            Navigator.pushNamed(context, AppRoutes.meal);
+          } else if (index == 3) {
+            Navigator.pushNamed(context, AppRoutes.profile);
           }
         },
         destinations: const [
