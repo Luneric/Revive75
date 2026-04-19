@@ -92,7 +92,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // --- DATABASE SYNC HELPER ---
   // Ensures user data is stored in Firestore without overwriting existing accounts.
- Future<void> _syncUserToFirestore(User user, {String? customName}) async {
+  Future<void> _syncUserToFirestore(User user, {String? customName}) async {
   try {
     final userDoc =
         FirebaseFirestore.instance.collection('users').doc(user.uid);
@@ -227,12 +227,15 @@ class _AuthScreenState extends State<AuthScreen> {
           idToken: googleAuth.idToken,
         );
         UserCredential userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+        
         if (userCred.user != null) await _syncUserToFirestore(userCred.user!);
       }
     } catch (e) {
       _showError("Google Error: ${e.toString()}");
     }
   }
+
+  
 
   // --- EMAIL/PASSWORD AUTH LOGIC ---
   Future<void> _handleAuth() async {
